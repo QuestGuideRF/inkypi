@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ config.name }}</title>
+    <script>
+        (function() {
+            const theme = localStorage.getItem('inkypi-theme') ||
+                         (window.matchMedia('(предпочитает цветовую схему: темную)').matches ? 'dark' : 'light');
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+        let lastModified = null;
+        const refreshIntervalMs = 3 * 1000;
+
+        async function refreshImage() {
+            const img = document.querySelector('.image-контейнер img');
+            if (!img) return;
+
+            try {
+                const headers = {};
+                if (lastModified) {
+                    headers['If-Modified-Since'] = lastModified;
+                }
+
+                const response = await fetch('{{ url_for("main.get_current_image") }}', { headers });
+
+                if (response.status === 304) {
+                    // Изображение не изменилось, обновлять не нужно.
+                    return;
+                }
+
+                if (!response.ok) {
+                    console.error('Не удалось получить изображение:', response.status);
+                    return;
+                }
+
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+
+                // Обновите источник изображения
+                img.src = objectUrl;
+
+                // Сохраните заголовок Last-Modified для следующего запроса.
+                lastModified = response.headers.get('Last-Modified');
+            } catch (error) {
+                console.error('Ошибка обновления изображения:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Обновить изображение сразу при загрузке страницы
+            refreshImage();
+
+            // Настройте автоматическое обновление в зависимости от интервала цикла плагина.
+            setInterval(refreshImage, refreshIntervalMs);
+        });
+    </script>
+</head>
+<link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/main.css') }}">
+<script src="{{ url_for('static', filename='scripts/image_modal.js') }}"></script>
+<body>
+    <script src="{{ url_for('static', filename='scripts/dark_mode.js') }}"></script>
+
+    <div class="frame">
+
+        <header class="header">
+            <h1>{{ config.name }}</h1>
+            <button class="settings-button dark-mode-toggle" title="Переключить темный режим" aria-label="Переключить темный режим"></button>
+            <a href="{{ url_for('playlist.playlists') }}" class="settings-button">
+                <img src="{{ url_for('static', filename='icons/playlist.png') }}" title="Playlists" alt="значок плейлиста" class="icon-image">
+            </a>
+            <a href="{{ url_for('settings.settings_page') }}" class="settings-button">
+                <img src="{{ url_for('static', filename='icons/settings.png') }}" title="Settings" alt="значок настроек" class="icon-image">
+            </a>
+        </header>
+
+        <div class="image-container">
+            <img src="{{ url_for('static', filename='images/current_image.png') }}" alt="Текущее изображение">
+        </div>
+
+        <div class="separator"></div>
+        <h2 class="plugins-title">Plugins</h2>
+        <div class="button-grid">
+            {% for plugin in plugins %}
+            <a href="{{ url_for('plugin.plugin_page', plugin_id=plugin.id) }}" class="icon-button" title="{{ plugin.display_name }}" >
+                <img src="{{ url_for('plugin.image', plugin_id=plugin.id, filename='icon.png') }}" alt="Значок {{ plugin.display_name }}" class="icon-image">
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,17 @@
+<div class="form-group">
+    <label for="url" class="form-label">URL-адрес изображения:</label>
+    <input type="text" id="url" name="url" placeholder="Напечатайте что-нибудь..." required class="form-input">
+</div>
+
+<div class="form-group">
+    <span style="color: var(--text-primary);">Предупреждение. Не используйте ненадежные URL-адреса, поскольку это может представлять угрозу безопасности. Это также может привести к сбою, если изображение загружается слишком долго.</span>
+</div>
+
+<script>
+    // заполнить значения формы из настроек плагина
+    document.addEventListener('DOMContentLoaded', () => {
+        if (loadPluginSettings) {
+            document.getElementById('url').value = pluginSettings.url;
+        }
+    });
+</script>

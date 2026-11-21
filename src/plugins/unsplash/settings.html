@@ -1,0 +1,61 @@
+<div class="form-group">
+    <label for="search_query" class="form-label">Поисковый запрос:</label>
+    <input type="text" id="search_query" name="search_query" placeholder="Напечатайте что-нибудь..." class="form-input">
+    <small style="width: 100%; color: var(--text-primary);">Необязательно: выполните поиск изображения на Unsplash. Если этот параметр не указан, будет получено случайное изображение.</small>
+</div>
+
+<div class="form-group">
+    <label for="collections" class="form-label">Collections:</label>
+    <input type="text" id="collections" name="collections" placeholder="e.g. 1234,5678" class="form-input">
+    <small style="width: 100%; color: var(--text-primary);">Необязательно: разделенный запятыми список идентификаторов коллекций Unsplash.</small>
+</div>
+
+<div class="form-group">
+    <div class="form-group">
+        <label for="content_filter" class="form-label">Контент-фильтр:</label>
+        <select id="content_filter" name="content_filter" class="form-input">
+            <option value="low">Избегайте наготы и насилия</option>
+            <option value="high">Без фильтрации</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="color" class="form-label">Color:</label>
+        <select id="color" name="color" class="form-input">
+            <option value="">Any</option>
+            <option value="black_and_white">Черное и белое</option>
+            <option value="black">Black</option>
+            <option value="white">White</option>
+            <option value="yellow">Yellow</option>
+            <option value="orange">Orange</option>
+            <option value="red">Red</option>
+            <option value="purple">Purple</option>
+            <option value="magenta">Magenta</option>
+            <option value="green">Green</option>
+            <option value="teal">Teal</option>
+            <option value="blue">Blue</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="orientation" class="form-label">Orientation:</label>
+        <select id="orientation" name="orientation" class="form-input">
+            <option value="">Any</option>
+            <option value="landscape">Landscape</option>
+            <option value="portrait">Portrait</option>
+        </select>
+    </div>
+</div>
+
+<script>
+    // заполнить значения формы из настроек плагина
+    document.addEventListener('DOMContentLoaded', () => {
+        if (loadPluginSettings) {
+            document.getElementById('search_query').value = pluginSettings.search_query || '';
+            document.getElementById('collections').value = pluginSettings.collections || '';
+            document.getElementById('content_filter').value = pluginSettings.content_filter || 'low';
+            document.getElementById('color').value = pluginSettings.color || '';
+            document.getElementById('orientation').value = pluginSettings.orientation || '';
+        }
+    });
+</script>

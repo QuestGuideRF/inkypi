@@ -1,0 +1,40 @@
+<div class="form-group">
+    <div class="form-group nowrap">
+        <label for="title" class="form-label">Title:</label>
+        <input type="text" id="title" name="title" placeholder="Напечатайте что-нибудь..." required class="form-input">
+    </div>
+
+    <div class="form-group nowrap">
+        <label for="textModel" class="form-label">Текстовая модель:</label>
+        <select id="textModel" name="textModel" class="form-input">
+            <option value="gpt-4o-mini">ГПТ-4о мини</option>
+            <option value="gpt-4o">GPT-4o</option>
+            <option value="gpt-4.1">GPT-4.1</option>
+            <option value="gpt-4.1-mini">ГПТ-4.1 мини</option>
+            <option value="gpt-4.1-nano">ГПТ-4.1 нано</option>
+            <option value="gpt-5">GPT-5</option>
+            <option value="gpt-5-mini">ГПТ-5 мини</option>
+            <option value="gpt-5-nano">ГПТ-5 нано</option>
+        </select>
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="textPrompt" class="form-label">Текстовая подсказка:</label>
+    <input type="text" id="textPrompt" name="textPrompt" placeholder="Напечатайте что-нибудь..." required class="form-input">
+</div>
+
+<script>
+
+    // заполнить значения формы из настроек плагина
+    document.addEventListener('DOMContentLoaded', () => {
+        if (loadPluginSettings) {
+            // Заполнение текстовых полей
+            document.getElementById('title').value = pluginSettings.title || '';
+            document.getElementById('textPrompt').value = pluginSettings.textPrompt || '';
+
+            // Заполнение текстовой модели
+            document.getElementById('textModel').value = pluginSettings.textModel;
+        }
+    });
+</script>

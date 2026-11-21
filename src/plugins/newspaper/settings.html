@@ -1,0 +1,110 @@
+<div class="form-group">
+
+    <div class="form-group">
+        <label for="newspaper" class="form-label">Newspaper:</label>
+        <input
+            type="text"
+            id="newspaper"
+            name="newspaperName"
+            class="form-input"
+            list="newspaperList"
+            placeholder="Введите для поиска..."
+            onchange="updateSlugAndLocation()"
+        />
+        <datalist id="newspaperList">
+
+            {% for newspaper in newspapers %}
+            <option value="{{ newspaper.name }}" slug="{{ newspaper.slug }}" location="{{ newspaper.city }}, {{ newspaper.country }}"></option>
+            {% endfor %}
+        </datalist>
+
+        <input type="hidden" id="newspaperSlug" name="newspaperSlug" />
+    </div>
+
+    <div class="form-group">
+        <label for="locationSearch" class="form-label">Location:</label>
+        <input
+            type="text"
+            id="locationSearch"
+            name="locationSearch"
+            class="form-input"
+            list="locationOptions"
+            placeholder="Введите для поиска..."
+            onchange="filterNewspapersByLocation()"
+        />
+        <datalist id="locationOptions">
+
+            {% set unique_locations = newspapers | map(attribute='city') | unique | list | sort %}
+            {% for location in unique_locations %}
+
+                {% set country = (newspapers | selectattr('city', 'equalto', location) | list)[0].country %}
+                <option value="{{ location }}, {{ country }}"></option>
+            {% endfor %}
+        </datalist>
+    </div>
+</div>
+
+<script>
+    // Передайте данные газет как объект JavaScript.
+    const newspapers = {{ newspapers|tojson }};
+</script>
+
+<script>
+    function updateSlugAndLocation() {
+        const newspaperInput = document.getElementById("newspaper");
+        const slugInput = document.getElementById("newspaperSlug");
+        const locationInput = document.getElementById("locationSearch");
+
+        // Найдите выбранную газету в массиве JavaScript.
+        const selectedNewspaper = newspapers.find(
+            (newspaper) => newspaper.name === newspaperInput.value
+        );
+
+        if (selectedNewspaper) {
+            slugInput.value = selectedNewspaper.slug;
+            locationInput.value = `${selectedNewspaper.city}, ${selectedNewspaper.country}`;
+        } else {
+            slugInput.value = "";
+            locationInput.value = ""; // Очистить местоположение, если газета не выбрана
+
+            // Всегда фильтровать газеты по текущему местоположению
+            filterNewspapersByLocation();
+        }
+    }
+
+    function filterNewspapersByLocation() {
+        const locationInput = document.getElementById("locationSearch").value.toLowerCase();
+        const newspaperInput = document.getElementById("newspaper");
+        const newspaperList = document.getElementById("newspaperList");
+
+        // Очищайте список газет (но не входные данные) каждый раз при изменении местоположения.
+        newspaperList.innerHTML = "";
+
+        // Фильтровать газеты на основе введенных данных о местоположении
+        newspapers.forEach((newspaper) => {
+            const formattedLocation = `${newspaper.city}, ${newspaper.country}`.toLowerCase();
+
+            if (!locationInput || formattedLocation.includes(locationInput)) {
+                const option = document.createElement("option");
+                option.value = newspaper.name;
+                option.setAttribute("slug", newspaper.slug);
+                option.setAttribute("location", `${newspaper.city}, ${newspaper.country}`);
+                newspaperList.appendChild(option);
+            }
+        });
+    }
+
+    // Default selection for the first clock face or based on plugin_settings
+    document.addEventListener('DOMContentLoaded', () => {
+        const newspaperInput = document.getElementById("newspaper");
+        const locationInput = document.getElementById("locationSearch");
+        const slugInput = document.getElementById("newspaperSlug");
+
+        if (pluginSettings && pluginSettings.newspaperName) {
+            // Установите ввод газеты
+            newspaperInput.value = pluginSettings.newspaperName;
+
+            updateSlugAndLocation();
+        }
+    });
+</script>

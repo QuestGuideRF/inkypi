@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playlists</title>
+    <script>
+        (function() {
+            const theme = localStorage.getItem('inkypi-theme') ||
+                         (window.matchMedia('(предпочитает цветовую схему: темную)').matches ? 'dark' : 'light');
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+    <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/main.css') }}">
+    <script src="{{ url_for('static', filename='scripts/dark_mode.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/response_modal.js') }}"></script>
+    <style>
+        /* Plugin Instance Thumbnail */
+        .plugin-thumbnail-container {
+            position: relative;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+
+        .plugin-thumbnail {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .plugin-thumbnail:hover {
+            transform: scale(1.1);
+            border-color: var(--accent-primary);
+        }
+
+        /* Thumbnail Preview Modal */
+        .thumbnail-preview-modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--modal-overlay);
+            backdrop-filter: blur(3px);
+        }
+
+        .thumbnail-preview-content {
+            position: relative;
+            margin: 5% auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 800px;
+            background-color: var(--modal-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow-medium);
+        }
+
+        .thumbnail-preview-content img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+        .thumbnail-preview-close {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 35px;
+            font-weight: bold;
+            color: var(--close-btn-color);
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .thumbnail-preview-close:hover,
+        .thumbnail-preview-close:focus {
+            color: var(--close-btn-hover);
+        }
+
+        .thumbnail-preview-info {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: var(--bg-primary);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+    </style>
+    <script>
+        async function deletePluginInstance(playlistName, pluginId, pluginInstance) {
+            try {
+                const response = await fetch("{{ url_for('plugin.delete_plugin_instance') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        playlist_name: playlistName,
+                        plugin_id: pluginId,
+                        plugin_instance: pluginInstance
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    sessionStorage.setItem("storedMessage", JSON.stringify({ type: "success", text: `Успех! ${result.message}` }));
+                    location.reload();
+                } else {
+                    showResponseModal('failure', `Ошибка!  ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('При обработке вашего запроса произошла ошибка.');
+            }
+        }
+
+        function showThumbnailPreview(playlistName, pluginId, instanceName) {
+            const modal = document.getElementById('thumbnailPreviewModal');
+            const img = document.getElementById('thumbnailPreviewImage');
+            const info = document.getElementById('thumbnailPreviewInfo');
+
+            const imageUrl = `/plugin_instance_image/${encodeURIComponent(playlistName)}/${encodeURIComponent(pluginId)}/${encodeURIComponent(instanceName)}`;
+            img.src = imageUrl;
+            info.textContent = `Плагин: ${pluginId} | Экземпляр: ${instanceName}`;
+            modal.style.display = 'block';
+        }
+
+        function closeThumbnailPreview() {
+            const modal = document.getElementById('thumbnailPreviewModal');
+            modal.style.display = 'none';
+        }
+
+        // Закрыть модальное окно при нажатии за пределами изображения
+        window.onclick = function(event) {
+            const modal = document.getElementById('thumbnailPreviewModal');
+            if (event.target === modal) {
+                closeThumbnailPreview();
+            }
+        }
+
+        async function displayPluginInstance(playlistName, pluginId, pluginInstance) {
+            const loadingIndicator = document.getElementById(pluginInstance)?.querySelector('.loading-indicator');
+            loadingIndicator.style.display = 'block';
+            try {
+                const response = await fetch("{{ url_for('plugin.display_plugin_instance') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        playlist_name: playlistName,
+                        plugin_id: pluginId,
+                        plugin_instance: pluginInstance
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    sessionStorage.setItem("storedMessage", JSON.stringify({ type: "success", text: `Успех! ${result.message}` }));
+                    location.reload();
+                } else {
+                    showResponseModal('failure', `Ошибка!  ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('При обработке вашего запроса произошла ошибка.');
+            } finally {
+                // Скрыть индикатор загрузки после завершения действия
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        // Открытое модальное окно для **создания** нового плейлиста
+        function openCreateModal() {
+            document.getElementById("modalTitle").textContent = "Новый плейлист";
+            document.getElementById("playlist_name").value = "";
+            document.getElementById("editingPlaylistName").value = ""; // Пустое значение означает, что оно новое.
+            document.getElementById("start_time").value = "00:00";
+            document.getElementById("end_time").value = "24:00";
+
+            document.getElementById("saveButton").setAttribute("onclick", "создатьПлейлист()");
+            document.getElementById("deleteButton").classList.add("hidden"); // Скрыть кнопку удаления
+
+            document.getElementById("playlistModal").style.display = "block";
+        }
+
+        // Открытое модальное окно для **редактирования** существующего плейлиста.
+        function openEditModal(playlistName, startTime, endTime) {
+            document.getElementById("modalTitle").textContent = "Обновить плейлист";
+            document.getElementById("playlist_name").value = playlistName;
+            document.getElementById("editingPlaylistName").value = playlistName;
+            document.getElementById("start_time").value = startTime;
+            document.getElementById("end_time").value = endTime;
+
+            document.getElementById("saveButton").setAttribute("onclick", "обновитьПлейлист()");
+            document.getElementById("deleteButton").classList.remove("hidden"); // Показать кнопку удаления
+
+            document.getElementById("playlistModal").style.display = "block";
+        }
+
+        function openModal() {
+            const modal = document.getElementById('playlistModal');
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('playlistModal');
+            modal.style.display = 'none';
+        }
+
+        async function createPlaylist() {
+            let playlistName = document.getElementById("playlist_name").value.trim();
+            let startTime = document.getElementById("start_time").value;
+            let endTime = document.getElementById("end_time").value;
+
+            try {
+                const response = await fetch("{{ url_for('playlist.create_playlist') }}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ playlist_name: playlistName, start_time: startTime, end_time: endTime })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    closeModal(); // Закройте модальное окно в случае успеха
+                    sessionStorage.setItem("storedMessage", JSON.stringify({ type: "success", text: `Успех! ${result.message}` }));
+                    location.reload();
+                } else {
+                    showResponseModal('failure', `Ошибка!  ${result.error}`);
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert('При обработке вашего запроса произошла ошибка.');
+            }
+        }
+
+        async function updatePlaylist() {
+            let oldName = document.getElementById("editingPlaylistName").value;
+            let newName = document.getElementById("playlist_name").value;
+            let startTime = document.getElementById("start_time").value;
+            let endTime = document.getElementById("end_time").value;
+
+            try {
+                const response = await fetch("{{ url_for('playlist.update_playlist', playlist_name='') }}" + oldName, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ new_name: newName, start_time: startTime, end_time: endTime })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    closeModal(); // Закройте модальное окно после успеха
+                    sessionStorage.setItem("storedMessage", JSON.stringify({ type: "success", text: `Успех! ${result.message}` }));
+                    location.reload();
+                } else {
+                    showResponseModal('failure', `Ошибка!  ${result.error}`);
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert('При обработке вашего запроса произошла ошибка.');
+            }
+        }
+
+        async function deletePlaylist() {
+            let name = document.getElementById("editingPlaylistName").value;
+            try {
+                const response = await fetch("{{ url_for('playlist.delete_playlist', playlist_name='') }}" + name, {
+                    method: "DELETE",
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    closeModal(); // Закройте модальное окно после успеха
+                    sessionStorage.setItem("storedMessage", JSON.stringify({ type: "success", text: `Успех! ${result.message}` }));
+                    location.reload();
+                } else {
+                    showResponseModal('failure', `Ошибка!  ${result.error}`);
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert('При обработке вашего запроса произошла ошибка.');
+            }
+        }
+
+        function populateTimeOptions() {
+            let startSelect = document.getElementById("start_time");
+            let endSelect = document.getElementById("end_time");
+
+            startSelect.innerHTML = "";
+            endSelect.innerHTML = "";
+
+            for (let hour = 0; hour < 24; hour++) { // 24-часовой формат (0-23)
+                for (let minutes of [0, 15, 30, 45]) {
+                    let time = hour.toString().padStart(2, '0') + ":" + minutes.toString().padStart(2, '0');
+                    startSelect.innerHTML += `<option value="${time}">${time}</option>`;
+                    endSelect.innerHTML += `<option value="${time}">${time}</option>`;
+                }
+            }
+            startSelect.innerHTML += `<option value="24:00">24:00</option>`;
+            endSelect.innerHTML += `<option value="24:00">24:00</option>`;
+        }
+
+        document.addEventListener("DOMContentLoaded", populateTimeOptions);
+
+        window.addEventListener("load", function () {
+            let storedMessage = sessionStorage.getItem("storedMessage");
+            if (storedMessage) {
+                let { type, text } = JSON.parse(storedMessage);
+                showResponseModal(type, text);
+                sessionStorage.removeItem("storedMessage"); // Очистить сохраненное сообщение после отображения
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="frame">
+
+        <button onclick="history.back()" class="back-button">← Назад</button>
+
+        <div class="app-header">
+            <div class="header-content">
+                <div class="title-container">
+                    <img src="{{ url_for('static', filename='icons/playlist.png') }}" alt="значок плейлиста" class="app-icon">
+                    <h1 class="app-title">Playlists</h1>
+                </div>
+                <button class="header-button" onclick="openCreateModal()">Новый плейлист</button>
+            </div>
+        </div>
+        <div class="separator"></div>
+
+        <div class="playlist-list">
+            {% for playlist in playlist_config.playlists %}
+            <div class="playlist-item {% if playlist.name == playlist_config.active_playlist %}active{% endif %}">
+                    <div class="playlist-header">
+                        <span class="playlist-title">{{ playlist.name }}</span>
+                        <button class="edit-button" onclick="openEditModal('{{ playlist.name }}', '{{ playlist.start_time }}','{{ playlist.end_time }}')"><img src="{{ url_for('static', filename='icons/settings.png') }}" alt="редактировать плейлист" class="action-icon"></button>
+                    </div>
+
+                    <div class="plugin-list">
+                        {% for plugin_instance in playlist.plugins %}
+                        <div class="plugin-item">
+                            <div class="plugin-info" id="{{plugin_instance.name}}">
+                                <img src="{{ url_for('plugin.image', plugin_id=plugin_instance.plugin_id, filename='icon.png') }}" alt="Значок плагина" class="plugin-icon">
+                                <span class="plugin-instance">{{ plugin_instance.name }}</span>
+
+                                {% if plugin_instance.latest_refresh_time %}
+                                <div class="plugin-thumbnail-container" onclick="showThumbnailPreview('{{ playlist.name }}', '{{ plugin_instance.plugin_id }}', '{{ plugin_instance.name }}')">
+                                    <img
+                                        src="{{ url_for('plugin.plugin_instance_image', playlist_name=playlist.name, plugin_id=plugin_instance.plugin_id, instance_name=plugin_instance.name) }}"
+                                        alt="Preview"
+                                        class="plugin-thumbnail"
+                                        title="Нажмите, чтобы просмотреть в полном размере"
+                                        onerror="this.parentElement.style.display='none';"
+                                    >
+                                </div>
+                                {% endif %}
+
+                                {% if playlist.name == refresh_info.playlist and plugin_instance.name == refresh_info.plugin_instance %}
+                                <span class="displayed-now">Отображается сейчас</span>
+                                {% endif %}
+                                <div id="loadingIndicator" class="loading-indicator small left-align"></div>
+
+                            </div>
+                            <div class="plugin-actions">
+                                {% if plugin_instance.latest_refresh_time %}
+                                    {% set refresh_time = plugin_instance.latest_refresh_time | format_relative_time %}
+                                    <span class="latest-refresh" title="{{plugin_instance.latest_refresh_time}}">
+                                        Обновлено {{ refresh_time }}
+                                    </span>
+                                {% endif %}
+
+                                <a href="{{ url_for('plugin.plugin_page', plugin_id=plugin_instance.plugin_id) }}?instance={{ plugin_instance.name }}" class="edit-button">
+                                    <img src="{{ url_for('static', filename='icons/edit.png') }}" alt="редактировать плагин" class="action-icon">
+                                </a>
+                                <button class="edit-button" title="Показать сейчас" onclick="displayPluginInstance('{{ playlist.name }}', '{{ plugin_instance.plugin_id }}','{{ plugin_instance.name }}')">
+                                    <img src="{{ url_for('static', filename='icons/display.png') }}" alt="показать сейчас" class="action-icon">
+                                </button>
+                                <button class="delete-button" title="Удалить экземпляр плагина" onclick="deletePluginInstance('{{ playlist.name }}', '{{ plugin_instance.plugin_id }}','{{ plugin_instance.name }}')">
+                                    <img src="{{ url_for('static', filename='icons/remove.png') }}" alt="удалить плагин" class="action-icon">
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="playlistModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal()">×</span>
+            <h2 id="modalTitle">Новый плейлист</h2>
+            <div class="separator"></div>
+            <form id="scheduleForm" class="settings-form">
+                <input type="hidden" id="editingPlaylistName" value="">
+
+                <div class="form-group">
+                    <label for="playlist_name" class="form-label">Название плейлиста:</label>
+                    <input type="text" id="playlist_name" name="playlist_name" placeholder="Напечатайте что-нибудь..." required class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="start_time" class="form-label">Отобразить с </label>
+                    <select id="start_time" name="start_time" class="form-input"></select>
+                    <span> - </span>
+                    <select id="end_time" name="end_time" class="form-input"></select>
+                </div>
+            </form>
+            <div class="buttons-container">
+                <button type="button" class="action-button" id="saveButton">Save</button>
+                <button type="button" class="action-button warn hidden" id="deleteButton" onclick="deletePlaylist()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    {% include 'response_modal.html' %}
+
+    <div id="thumbnailPreviewModal" class="thumbnail-preview-modal">
+        <div class="thumbnail-preview-content">
+            <span class="thumbnail-preview-close" onclick="closeThumbnailPreview()">×</span>
+            <img id="thumbnailPreviewImage" src="" alt="Предварительный просмотр экземпляра плагина">
+            <div class="thumbnail-preview-info" id="thumbnailPreviewInfo"></div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<div class="form-group">
+    <label for="clock-face" class="form-label">Циферблат:</label>
+
+    <div id="clock-face-selection" class="image-grid">
+        {% for face in clock_faces %}
+        <div
+            class="image-option"
+            data-face-name="{{ face.name }}"
+            data-primary-color="{{ face.primary_color }}"
+            data-secondary-color="{{ face.secondary_color }}"
+            onclick="selectClockFace(this)"
+        >
+            <img
+                src="{{ url_for('plugin.image', plugin_id='clock', filename=face.icon) }}"
+                alt="{{ face.name }}"
+            />
+        </div>
+        {% endfor %}
+    </div>
+    <input type="hidden" id="selected-clock-face" name="selectedClockFace" value="{{ clock_faces[0].Name }}" />
+</div>
+<div class="form-group">
+    <div class="form-group">
+        <label for="primaryColor" class="form-label">Основной цвет:</label>
+        <input type="color" name="primaryColor" class="color-picker" value="{{ clock_faces[0].primary_color }}"/>
+    </div>
+    <div class="form-group">
+        <label for="secondaryColor" class="form-label">Вторичный цвет:</label>
+        <input type="color" name="secondaryColor" class="color-picker" value="{{ clock_faces[0].secondary_color }}"/>
+    </div>
+</div>
+
+<script>
+    function selectClockFace(element) {
+        // Удалить выбранный класс из любого ранее выбранного варианта
+        const previousSelection = document.querySelector('.image-option.selected');
+        if (previousSelection) {
+            previousSelection.classList.remove('selected');
+        }
+
+        // Добавить выбранный класс к выбранной опции
+        element.classList.add('selected');
+
+        // Обновите скрытый ввод, указав выбранное имя циферблата.
+        const selectedFaceName = element.dataset.faceName;
+        document.getElementById('selected-clock-face').value = selectedFaceName;
+        document.querySelector("[имя=основнойцвет]").value = element.dataset.primaryColor;
+        document.querySelector("[имя=вторичныйцвет]").value = element.dataset.secondaryColor;
+    }
+
+    // Default selection for the first clock face or based on plugin_settings
+    document.addEventListener('DOMContentLoaded', () => {
+        const clockFaceContainer = document.getElementById('clock-face-selection');
+        const selectedClockFaceInput = document.getElementById('selected-clock-face');
+
+        // Проверьте, имеет ли плагинSettings значение selectedClockFace.
+        const selectedClockFaceFromSettings = pluginSettings?.selectedClockFace;
+
+        let selectedOption = clockFaceContainer.querySelector('.image-option');
+
+        if (selectedClockFaceFromSettings) {
+            // Найдите циферблат с именем в настройках плагина.
+            selectedOption = clockFaceContainer.querySelector(`.image-option[data-face-name="${selectedClockFaceFromSettings}"]`);
+        }
+
+        // Если найден действительный вариант, выберите его.
+        if (selectedOption) {
+            selectedOption.classList.add('selected');
+            selectedClockFaceInput.value = selectedOption.getAttribute('data-face-name');
+        }
+
+        if (pluginSettings.primaryColor) {
+            document.querySelector("[имя=основнойцвет]").value = pluginSettings.primaryColor;
+        }
+        if (pluginSettings.secondaryColor) {
+            document.querySelector("[имя=вторичныйцвет]").value = pluginSettings.secondaryColor;
+        }
+    });
+</script>
